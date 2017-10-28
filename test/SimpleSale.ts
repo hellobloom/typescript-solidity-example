@@ -1,6 +1,4 @@
-import * as BigNumber from "bignumber.js";
 import * as chai from "chai";
-import * as chaiAsPromised from "chai-as-promised";
 
 const chaiBignumber = require("chai-bignumber");
 
@@ -9,7 +7,7 @@ chai.use(chaiBignumber(web3.BigNumber)).should();
 const SimpleSale = artifacts.require("SimpleSale");
 const SimpleToken = artifacts.require("SimpleToken");
 
-contract("SimpleSale", function([_, buyer, wallet, purchaser]) {
+contract("SimpleSale", function([_, buyer, wallet, donor, recipient]) {
   function latestBlockTime() {
     return latestBlock().timestamp;
   }
@@ -46,5 +44,32 @@ contract("SimpleSale", function([_, buyer, wallet, purchaser]) {
 
     balanceBefore.should.be.bignumber.equal(0);
     balanceAfter.should.be.bignumber.equal(2500);
+  });
+
+  it("allows user to buy tokens for another user", async () => {
+    const sale = await SimpleSale.new(
+      latestBlockTime() + 1,
+      latestBlockTime() + 10,
+      50,
+      wallet
+    );
+
+    const token = SimpleToken.at(await sale.token());
+
+    const recipientBalanceBefore = await token.balanceOf(recipient);
+    const donorBalanceBefore = await token.balanceOf(donor);
+
+    await sale.buyTokens(recipient, {
+      value: 50,
+      from: donor
+    });
+
+    const recipientBalanceAfter = await token.balanceOf(recipient);
+    const donorBalanceAfter = await token.balanceOf(donor);
+
+    recipientBalanceBefore.should.be.bignumber.equal(0);
+    recipientBalanceAfter.should.be.bignumber.equal(2500);
+    donorBalanceBefore.should.be.bignumber.equal(0);
+    donorBalanceAfter.should.be.bignumber.equal(0);
   });
 });
